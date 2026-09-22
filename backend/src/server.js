@@ -30,7 +30,7 @@ app.use(helmet());
 const allowedOrigin = process.env.CLIENT_URL || 'http://localhost:5173';
 app.use(
   cors({
-    origin: allowedOrigin,
+    origin: (origin, callback) => callback(null, true),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -57,7 +57,8 @@ app.use('/api', limiter);
 // Socket.io initialization
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigin,
+    origin: (origin, callback) => callback(null, true),
+    credentials: true,
     methods: ['GET', 'POST'],
   },
 });
