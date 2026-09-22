@@ -1,0 +1,265 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  INTERVIEWER
+  CANDIDATE
+}
+
+enum AssessmentStatus {
+  DRAFT
+  SCHEDULED
+  LIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum CandidateStatus {
+  INVITED
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  DISQUALIFIED
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum Category {
+  JAVASCRIPT
+  PYTHON
+  JAVA
+  CPP
+  DATA_STRUCTURES
+  ALGORITHMS
+  DATABASE
+  WEB_DEVELOPMENT
+}
+
+enum SessionStatus {
+  WAITING
+  ACTIVE
+  SUBMITTED
+  COMPLETED
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(CANDIDATE)
+  phone        String?
+  education    String?
+  skills       String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  createdAssessments  Assessment[]          @relation("CreatedAssessments")
+  createdQuestions    Question[]            @relation("CreatedQuestions")
+  candidateAssessment AssessmentCandidate[] @relation("CandidateAssessments")
+  candidateSessions   AssessmentSession[]   @relation("CandidateSessions")
+}
+
+model Assessment {
+  id          Int              @id @default(autoincrement())
+  title       String
+  description String?          @db.Text
+  duration    Int              @default(60) // Duration in minutes
+  startTime   DateTime?
+  endTime     DateTime?
+  status      AssessmentStatus @default(DRAFT)
+  createdBy   Int
+  creator     User             @relation("CreatedAssessments", fields: [createdBy], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  candidates AssessmentCandidate[]
+  questions  AssessmentQuestion[]
+  sessions   AssessmentSession[]
+}
+
+model AssessmentCandidate {
+  id           Int             @id @default(autoincrement())
+  assessmentId Int
+  candidateId  Int
+  status       CandidateStatus @default(INVITED)
+  joinedAt     DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime        @default(now())
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  candidate  User       @relation("CandidateAssessments", fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, candidateId])
+}
+
+model Question {
+  id             Int        @id @default(autoincrement())
+  title          String
+  description    String     @db.Text
+  category       Category   @default(JAVASCRIPT)
+  difficulty     Difficulty @default(MEDIUM)
+  language       String     @default("javascript")
+  expectedOutput String?    @db.Text
+  timeLimit      Int        @default(30) // in seconds
+  createdBy      Int
+  creator        User       @relation("CreatedQuestions", fields: [createdBy], references: [id], onDelete: Cascade)
+  isDeleted      Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  assessmentQuestions AssessmentQuestion[]
+  submissions         Submission[]
+}
+
+model AssessmentQuestion {
+  id           Int      @id @default(autoincrement())
+  assessmentId Int
+  questionId   Int
+  displayOrder Int      @default(1)
+  createdAt    DateTime @default(now())
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  question   Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, questionId])
+}
+
+model AssessmentSession {
+  id                Int           @id @default(autoincrement())
+  assessmentId      Int
+  candidateId       Int
+  startedAt         DateTime?
+  endedAt           DateTime?
+  status            SessionStatus @default(WAITING)
+  currentQuestionId Int?
+  currentCode       String?       @db.Text
+  language          String        @default("javascript")
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  candidate  User       @relation("CandidateSessions", fields: [candidateId], references: [id], onDelete: Cascade)
+
+  submissions         Submission[]
+  proctoringIncidents ProctoringIncident[]
+  feedback            Feedback?
+  report              Report?
+
+  @@unique([assessmentId, candidateId])
+}
+
+// Future-Ready Foundation Models
+model Submission {
+  id            Int               @id @default(autoincrement())
+  sessionId     Int
+  assessmentId  Int?
+  candidateId   Int?
+  questionId    Int
+  code          String            @db.Text
+  language      String            @default("javascript")
+  status        String            @default("SUBMITTED") // SUBMITTED, PROCESSING, EVALUATED, FAILED
+  executionTime Float?
+  memoryUsed    Float?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  session       AssessmentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question      Question          @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  codeExecution CodeExecution?
+  aiEvaluation  AIEvaluation?
+}
+
+model CodeExecution {
+  id            Int        @id @default(autoincrement())
+  submissionId  Int?       @unique
+  sessionId     Int?
+  questionId    Int?
+  candidateId   Int?
+  language      String     @default("javascript")
+  status        String     @default("SUCCESS") // SUCCESS, ERROR, TIMEOUT, MEMORY_LIMIT
+  output        String?    @db.Text
+  error         String?    @db.Text
+  executionTime Float?
+  createdAt     DateTime   @default(now())
+
+  submission    Submission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+}
+
+model AIEvaluation {
+  id               Int        @id @default(autoincrement())
+  submissionId     Int        @unique
+  candidateId      Int?
+  assessmentId     Int?
+  correctness      Float      @default(0)
+  codeQuality      Float      @default(0)
+  efficiency       Float      @default(0)
+  problemSolving   Float      @default(0)
+  overallScore     Float      @default(0)
+  feedback         String?    @db.Text
+  suggestions      String?    @db.Text
+  status           String     @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  submission       Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+}
+
+model ProctoringIncident {
+  id            Int               @id @default(autoincrement())
+  assessmentId  Int?
+  sessionId     Int
+  candidateId   Int?
+  eventType     String            // TAB_SWITCH, WINDOW_BLUR, CAMERA_DISABLED, MICROPHONE_DISABLED
+  severity      String            @default("LOW") // LOW, MEDIUM, HIGH, CRITICAL
+  warningNumber Int               @default(1)
+  description   String?           @db.Text
+  timestamp     DateTime          @default(now())
+
+  session       AssessmentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model Feedback {
+  id                 Int               @id @default(autoincrement())
+  sessionId          Int               @unique
+  assessmentId       Int?
+  candidateId        Int?
+  interviewerId      Int?
+  technicalKnowledge Float             @default(0)
+  problemSolving     Float             @default(0)
+  communication      Float             @default(0)
+  codeQuality        Float             @default(0)
+  overallPerformance Float             @default(0)
+  comments           String?           @db.Text
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  session            AssessmentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id           Int               @id @default(autoincrement())
+  sessionId    Int               @unique
+  assessmentId Int?
+  candidateId  Int?
+  overallScore Float             @default(0)
+  status       String            @default("PENDING") // PENDING, GENERATING, COMPLETED, FAILED
+  summary      String?           @db.Text
+  filePath     String?
+  fileName     String?
+  generatedAt  DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  session      AssessmentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
