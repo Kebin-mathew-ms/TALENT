@@ -200,9 +200,11 @@ export const InterviewerDashboard = () => {
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.4rem' }}>
-                        <Link to={`/interviewer/assessments/${item.id}/live`} className="btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>
-                          <Play size={12} /> Live Monitor
-                        </Link>
+                        {item.status?.toUpperCase() !== 'COMPLETED' && (
+                          <Link to={`/interviewer/assessments/${item.id}/live`} className="btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>
+                            <Play size={12} /> Live Monitor
+                          </Link>
+                        )}
 
                         <Link to={`/interviewer/assessments/${item.id}/results`} className="btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>
                           <BarChart3 size={12} /> Results

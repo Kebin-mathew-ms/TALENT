@@ -11,6 +11,8 @@ import {
   ArrowLeft,
   Edit3,
   CheckCircle,
+  Play,
+  BarChart3,
 } from 'lucide-react';
 import '../styles/dashboard.css';
 
@@ -91,6 +93,18 @@ export const AssessmentDetailPage = () => {
                 <Link to={`/interviewer/assessments/${assessment.id}/edit`} className="btn-primary">
                   <Edit3 size={16} />
                   <span>Edit Assessment</span>
+                </Link>
+              )}
+              {assessment.status === 'LIVE' && (
+                <Link to={`/interviewer/assessments/${assessment.id}/live`} className="btn-primary">
+                  <Play size={16} />
+                  <span>Live Monitor</span>
+                </Link>
+              )}
+              {assessment.status === 'COMPLETED' && (
+                <Link to={`/interviewer/assessments/${assessment.id}/results`} className="btn-primary">
+                  <BarChart3 size={16} />
+                  <span>View Results</span>
                 </Link>
               )}
             </div>
