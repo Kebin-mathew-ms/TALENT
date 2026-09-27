@@ -27,8 +27,7 @@ import {
   RotateCcw,
   Eye,
 } from 'lucide-react';
-import '../styles/dashboard.css';
-
+import { extractDisplayCode } from '../utils/codeFormatter';
 import { LiveExamMeetingModal } from '../components/LiveExamMeetingModal';
 
 export const InterviewerLiveDashboardPage = () => {
@@ -155,9 +154,10 @@ export const InterviewerLiveDashboardPage = () => {
       try {
         const res = await fetchSessionDetails(selectedSessionId);
         if (res.success && res.data?.session) {
-          setSelectedSessionData(res.data.session);
-          setLiveCode(res.data.session.currentCode || '// Waiting for candidate code stream...');
-          setActiveLanguage(res.data.session.language || 'javascript');
+          const sess = res.data.session;
+          setSelectedSessionData(sess);
+          setLiveCode(extractDisplayCode(sess.currentCode, sess.currentQuestionId));
+          setActiveLanguage(sess.language || 'javascript');
         }
       } catch (err) {
         console.error('Failed to load session details:', err);
@@ -168,16 +168,16 @@ export const InterviewerLiveDashboardPage = () => {
 
     socketService.joinSessionRoom(selectedSessionId);
 
-    const handleCodeChanged = ({ sessionId: sId, code, language }) => {
+    const handleCodeChanged = ({ sessionId: sId, code, language, questionId }) => {
       if (sId === selectedSessionId) {
-        setLiveCode(code);
+        setLiveCode(extractDisplayCode(code, questionId));
         if (language) setActiveLanguage(language);
       }
     };
 
     socketService.on('session:code-changed', handleCodeChanged);
-    socketService.on('session:state', ({ currentCode, language }) => {
-      if (currentCode !== undefined) setLiveCode(currentCode);
+    socketService.on('session:state', ({ currentCode, language, currentQuestionId }) => {
+      if (currentCode !== undefined) setLiveCode(extractDisplayCode(currentCode, currentQuestionId));
       if (language) setActiveLanguage(language);
     });
 

@@ -18,6 +18,7 @@ import {
   Save,
   RefreshCw,
 } from 'lucide-react';
+import { extractDisplayCode } from '../utils/codeFormatter';
 import '../styles/dashboard.css';
 
 export const CandidateReportDetailPage = () => {
@@ -253,8 +254,8 @@ export const CandidateReportDetailPage = () => {
                     </span>
                   </div>
 
-                  <pre style={{ background: '#131b2e', padding: '0.85rem', borderRadius: 6, border: '1px solid var(--border)', fontFamily: 'var(--font-mono)', fontSize: '0.825rem', color: '#e2e8f0', overflowX: 'auto' }}>
-                    {sub.code}
+                  <pre style={{ background: '#131b2e', padding: '0.85rem', borderRadius: 6, border: '1px solid var(--border)', fontFamily: 'var(--font-mono)', fontSize: '0.825rem', color: '#e2e8f0', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
+                    {extractDisplayCode(sub.code, sub.questionId)}
                   </pre>
 
                   {sub.aiEvaluation && (
