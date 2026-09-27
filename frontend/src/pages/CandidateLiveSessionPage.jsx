@@ -824,7 +824,9 @@ export const CandidateLiveSessionPage = () => {
                     <div style={{ color: '#f43f5e', whiteSpace: 'pre-wrap', marginTop: 4 }}>{terminalOutput.stderr}</div>
                   )}
                   {!terminalOutput.stdout && !terminalOutput.stderr && (
-                    <div style={{ color: '#64748b' }}>Process finished with no output.</div>
+                    <div style={{ color: '#64748b' }}>
+                      Process finished with no output. (Tip: Add <code>console.log(...)</code> or <code>print(...)</code> to log custom debug statements).
+                    </div>
                   )}
                 </div>
               ) : (
