@@ -70,6 +70,13 @@ export const LiveExamMeetingModal = ({
     }
   }, [chatMessages]);
 
+  // Auto-attach admin video stream to video element when mounted
+  useEffect(() => {
+    if (adminVideoRef.current && adminVideoStream) {
+      adminVideoRef.current.srcObject = adminVideoStream;
+    }
+  }, [adminVideoStream, isAdminBroadcasting]);
+
   // Toggle Admin Camera Broadcast
   const toggleAdminVideoBroadcast = async () => {
     if (!isAdminBroadcasting) {
@@ -77,9 +84,6 @@ export const LiveExamMeetingModal = ({
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         adminMediaStreamRef.current = stream;
         setAdminVideoStream(stream);
-        if (adminVideoRef.current) {
-          adminVideoRef.current.srcObject = stream;
-        }
         setIsAdminBroadcasting(true);
         socketService.broadcastAdminStream({ assessmentId, isBroadcasting: true });
       } catch (err) {

@@ -213,6 +213,13 @@ export const InterviewerLiveDashboardPage = () => {
     };
   }, [selectedSessionId, token]);
 
+  // Auto-attach candidate video stream to remote video element when stream is ready
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteVideoStream) {
+      remoteVideoRef.current.srcObject = remoteVideoStream;
+    }
+  }, [remoteVideoStream]);
+
   const handleStart = async () => {
     if (window.confirm('Start this live assessment now? Assigned candidates will be notified.')) {
       try {
