@@ -1,6 +1,8 @@
 const prisma = require('../config/db');
 const EVENTS = require('./socketEvents');
 
+const chatStore = {};
+
 const registerAssessmentHandlers = (io, socket) => {
   // Join Assessment Room (Interviewer monitoring or Candidate status announcement)
   socket.on(EVENTS.ASSESSMENT_JOIN, async ({ assessmentId }) => {
@@ -46,6 +48,59 @@ const registerAssessmentHandlers = (io, socket) => {
       }
     } catch (error) {
       console.error('Error joining assessment room:', error);
+    }
+  });
+
+  // Live Meeting Chat Handler (Broadcast to all in assessment room)
+  socket.on(EVENTS.CHAT_MESSAGE, ({ assessmentId, text }) => {
+    const assId = parseInt(assessmentId, 10);
+    if (isNaN(assId) || !text || !text.trim()) return;
+
+    const roomName = `assessment_${assId}`;
+    if (!chatStore[assId]) chatStore[assId] = [];
+
+    const msgPayload = {
+      id: `${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      assessmentId: assId,
+      text: text.trim(),
+      sender: {
+        id: socket.user.id,
+        name: socket.user.name,
+        role: socket.user.role,
+        email: socket.user.email,
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    chatStore[assId].push(msgPayload);
+    if (chatStore[assId].length > 100) chatStore[assId].shift(); // Keep latest 100
+
+    io.to(roomName).emit(EVENTS.CHAT_MESSAGE, msgPayload);
+  });
+
+  // Fetch Chat History
+  socket.on(EVENTS.CHAT_HISTORY, ({ assessmentId }) => {
+    const assId = parseInt(assessmentId, 10);
+    if (!isNaN(assId)) {
+      socket.emit(EVENTS.CHAT_HISTORY, {
+        assessmentId: assId,
+        messages: chatStore[assId] || [],
+      });
+    }
+  });
+
+  // Admin Video/Audio Broadcast Toggle Signal
+  socket.on(EVENTS.MEETING_ADMIN_STREAM, ({ assessmentId, isBroadcasting }) => {
+    const assId = parseInt(assessmentId, 10);
+    if (!isNaN(assId) && socket.user.role === 'INTERVIEWER') {
+      const roomName = `assessment_${assId}`;
+      io.to(roomName).emit(EVENTS.MEETING_ADMIN_STREAM, {
+        assessmentId: assId,
+        adminId: socket.user.id,
+        adminName: socket.user.name,
+        isBroadcasting,
+        timestamp: new Date().toISOString(),
+      });
     }
   });
 

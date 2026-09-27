@@ -108,6 +108,25 @@ class SocketService {
     }
   }
 
+  // Live Exam Chat & Admin Video Broadcast Emitters
+  sendChatMessage({ assessmentId, text }) {
+    if (this.socket) {
+      this.socket.emit('chat:message', { assessmentId, text });
+    }
+  }
+
+  fetchChatHistory(assessmentId) {
+    if (this.socket) {
+      this.socket.emit('chat:history', { assessmentId });
+    }
+  }
+
+  broadcastAdminStream({ assessmentId, isBroadcasting }) {
+    if (this.socket) {
+      this.socket.emit('meeting:admin-stream', { assessmentId, isBroadcasting });
+    }
+  }
+
   // Event Listeners
   on(event, callback) {
     if (this.socket) {

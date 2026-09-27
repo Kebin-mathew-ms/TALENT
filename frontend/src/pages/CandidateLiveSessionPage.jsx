@@ -26,6 +26,9 @@ import {
   Terminal,
   FileCheck,
   RotateCcw,
+  MessageSquare,
+  Tv,
+  X,
 } from 'lucide-react';
 import '../styles/dashboard.css';
 
@@ -62,10 +65,18 @@ export const CandidateLiveSessionPage = () => {
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
 
+  // Live Exam Meeting & Group Chat State
+  const [showChatPanel, setShowChatPanel] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isAdminBroadcasting, setIsAdminBroadcasting] = useState(false);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+
   const localVideoRef = useRef(null);
   const webrtcRef = useRef(null);
   const saveTimeoutRef = useRef(null);
   const lastBlurTimeRef = useRef(0);
+  const chatScrollRef = useRef(null);
 
   // Initialize Candidate Session
   useEffect(() => {
@@ -200,6 +211,31 @@ export const CandidateLiveSessionPage = () => {
       }
     });
 
+    // Join Assessment Room for Live Meeting Chat & Broadcasts
+    if (assessmentId) {
+      socketService.joinAssessmentRoom(assessmentId);
+      socketService.fetchChatHistory(assessmentId);
+    }
+
+    const handleChatHistory = ({ messages }) => {
+      setChatMessages(messages || []);
+    };
+
+    const handleChatMessage = (msg) => {
+      setChatMessages((prev) => [...prev, msg]);
+      if (!showChatPanel) {
+        setUnreadChatCount((prev) => prev + 1);
+      }
+    };
+
+    const handleAdminStream = ({ isBroadcasting }) => {
+      setIsAdminBroadcasting(isBroadcasting);
+    };
+
+    socketService.on('chat:history', handleChatHistory);
+    socketService.on('chat:message', handleChatMessage);
+    socketService.on('meeting:admin-stream', handleAdminStream);
+
     return () => {
       socketService.leaveSessionRoom(session.id);
       socketService.off('disconnect');
@@ -209,6 +245,9 @@ export const CandidateLiveSessionPage = () => {
       socketService.off('webrtc:peer-ready');
       socketService.off('webrtc:answer');
       socketService.off('webrtc:ice-candidate');
+      socketService.off('chat:history', handleChatHistory);
+      socketService.off('chat:message', handleChatMessage);
+      socketService.off('meeting:admin-stream', handleAdminStream);
       if (webrtcRef.current) webrtcRef.current.cleanup();
     };
   }, [token, session?.id]);
@@ -334,6 +373,19 @@ export const CandidateLiveSessionPage = () => {
         language,
       });
     }
+  };
+
+  // Live Exam Candidate Chat Handler
+  const handleSendCandidateChat = (e) => {
+    e.preventDefault();
+    if (!chatInput.trim() || !assessmentId) return;
+
+    socketService.sendChatMessage({
+      assessmentId,
+      text: chatInput.trim(),
+    });
+
+    setChatInput('');
   };
 
   // Run Code Execution Handler (Secure Child Process)
@@ -550,8 +602,34 @@ export const CandidateLiveSessionPage = () => {
           <span>{formatTimer(timerSeconds)}</span>
         </div>
 
-        {/* Connection Status & Submit Button */}
+        {/* Connection Status, Chat & Submit Button */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <button
+            className="btn-secondary"
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.85rem', position: 'relative', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            onClick={() => {
+              setShowChatPanel(!showChatPanel);
+              if (!showChatPanel) setUnreadChatCount(0);
+            }}
+          >
+            <MessageSquare size={16} color="#38bdf8" />
+            <span>Meeting Chat</span>
+            {unreadChatCount > 0 && (
+              <span
+                style={{
+                  background: '#ef4444',
+                  color: '#fff',
+                  fontSize: '0.65rem',
+                  fontWeight: 800,
+                  padding: '0.1rem 0.4rem',
+                  borderRadius: 'var(--radius-full)',
+                }}
+              >
+                {unreadChatCount}
+              </span>
+            )}
+          </button>
+
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', color: isConnected ? '#34d399' : '#f43f5e' }}>
             {isConnected ? <Wifi size={16} /> : <WifiOff size={16} />}
             <span>{isConnected ? '● Connected' : '● Reconnecting...'}</span>
@@ -788,6 +866,143 @@ export const CandidateLiveSessionPage = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {/* Candidate Live Meeting & Admin Chat Side Panel */}
+      {showChatPanel && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 60,
+            right: 0,
+            bottom: 0,
+            width: 360,
+            background: '#0d1322',
+            borderLeft: '1px solid var(--border)',
+            boxShadow: '-8px 0 24px rgba(0,0,0,0.5)',
+            zIndex: 950,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {/* Panel Header */}
+          <div
+            style={{
+              padding: '0.85rem 1rem',
+              background: '#131b2e',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.925rem' }}>
+              <MessageSquare size={18} color="#38bdf8" /> Live Exam Meeting Chat
+            </div>
+            <button
+              onClick={() => setShowChatPanel(false)}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Admin Video Broadcast Status Banner */}
+          <div
+            style={{
+              padding: '0.75rem 1rem',
+              background: isAdminBroadcasting ? 'rgba(52,211,153,0.12)' : 'rgba(99,102,241,0.08)',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+            }}
+          >
+            <Tv size={18} color={isAdminBroadcasting ? '#34d399' : '#818cf8'} />
+            <div>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: isAdminBroadcasting ? '#34d399' : '#fff' }}>
+                {isAdminBroadcasting ? '📹 Admin Live Broadcast Active' : 'Admin Meeting Offline'}
+              </div>
+              <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>
+                {isAdminBroadcasting ? 'Admin is broadcasting live video/audio to all candidates' : 'Admin is monitoring exam session'}
+              </div>
+            </div>
+          </div>
+
+          {/* Chat Message Stream */}
+          <div
+            ref={chatScrollRef}
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '1rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+            }}
+          >
+            {chatMessages.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                No chat messages yet. Ask a question to the exam admin!
+              </div>
+            ) : (
+              chatMessages.map((msg) => {
+                const isAdmin = msg.sender?.role === 'INTERVIEWER';
+                return (
+                  <div
+                    key={msg.id || Math.random()}
+                    style={{
+                      background: isAdmin ? 'rgba(99,102,241,0.15)' : 'var(--bg-input)',
+                      border: isAdmin ? '1px solid rgba(99,102,241,0.3)' : '1px solid var(--border)',
+                      padding: '0.6rem 0.85rem',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.825rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          fontSize: '0.775rem',
+                          color: isAdmin ? '#a5b4fc' : '#34d399',
+                        }}
+                      >
+                        {msg.sender?.name || 'User'} {isAdmin ? '(Admin)' : ''}
+                      </span>
+                      <span style={{ fontSize: '0.675rem', color: 'var(--text-dim)' }}>
+                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <div style={{ color: '#fff', lineHeight: 1.4 }}>{msg.text}</div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Message Input Form */}
+          <form
+            onSubmit={handleSendCandidateChat}
+            style={{
+              padding: '0.75rem',
+              background: '#131b2e',
+              borderTop: '1px solid var(--border)',
+              display: 'flex',
+              gap: '0.5rem',
+            }}
+          >
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Ask admin a question..."
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              style={{ fontSize: '0.825rem', padding: '0.45rem 0.75rem' }}
+            />
+            <button type="submit" className="btn-primary" style={{ padding: '0.45rem 0.85rem' }}>
+              <Send size={15} />
+            </button>
+          </form>
         </div>
       )}
     </div>

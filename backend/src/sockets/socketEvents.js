@@ -31,4 +31,9 @@ module.exports = {
   WEBRTC_ICE_CANDIDATE: 'webrtc:ice-candidate',
   WEBRTC_PEER_READY: 'webrtc:peer-ready',
   WEBRTC_PEER_LEFT: 'webrtc:peer-left',
+
+  // Live Exam Meeting & Group Chat Events
+  CHAT_MESSAGE: 'chat:message',
+  CHAT_HISTORY: 'chat:history',
+  MEETING_ADMIN_STREAM: 'meeting:admin-stream',
 };

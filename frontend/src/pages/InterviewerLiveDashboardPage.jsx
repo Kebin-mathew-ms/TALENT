@@ -29,6 +29,8 @@ import {
 } from 'lucide-react';
 import '../styles/dashboard.css';
 
+import { LiveExamMeetingModal } from '../components/LiveExamMeetingModal';
+
 export const InterviewerLiveDashboardPage = () => {
   const { id, sessionId } = useParams();
   const { token } = useAuth();
@@ -36,6 +38,7 @@ export const InterviewerLiveDashboardPage = () => {
 
   const [assessment, setAssessment] = useState(null);
   const [selectedSessionId, setSelectedSessionId] = useState(sessionId ? parseInt(sessionId, 10) : null);
+  const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [selectedSessionData, setSelectedSessionData] = useState(null);
   const [liveCode, setLiveCode] = useState('');
   const [activeLanguage, setActiveLanguage] = useState('javascript');
@@ -290,6 +293,15 @@ export const InterviewerLiveDashboardPage = () => {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <button
+                className="btn-primary"
+                style={{ background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)' }}
+                onClick={() => setShowMeetingModal(true)}
+              >
+                <Tv size={16} />
+                <span>Live Meeting & Grid</span>
+              </button>
+
               <Link to="/interviewer/proctoring" className="btn-secondary">
                 <ShieldAlert size={16} color="#f43f5e" />
                 <span>Proctoring Reports</span>
@@ -516,6 +528,20 @@ export const InterviewerLiveDashboardPage = () => {
               </div>
             </div>
           </div>
+        )}
+        {/* Live Exam Meeting Modal Popup */}
+        {showMeetingModal && (
+          <LiveExamMeetingModal
+            assessment={assessment}
+            candidates={candidates}
+            sessions={sessions}
+            candidateStatuses={candidateStatuses}
+            onClose={() => setShowMeetingModal(false)}
+            onSelectCandidate={(sId) => {
+              setSelectedSessionId(sId);
+              navigate(`/interviewer/assessments/${id}/live/${sId}`);
+            }}
+          />
         )}
       </div>
     </DashboardLayout>
