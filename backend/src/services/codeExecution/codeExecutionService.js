@@ -31,23 +31,22 @@ class CodeExecutionService {
 
     let executionRecord = null;
     if (sessionId && candidateId) {
-      executionRecord = await prisma.codeExecution.create({
-        data: {
-          sessionId,
-          candidateId,
-          questionId: questionId || null,
-          language: langKey,
-          code,
-          stdin,
-          stdout: result.stdout,
-          stderr: result.stderr,
-          exitCode: result.exitCode,
-          executionTimeMs: result.executionTimeMs,
-          timedOut: result.timedOut,
-          memoryUsageBytes: result.memoryUsageBytes,
-          status: result.timedOut ? 'TIMEOUT' : (result.exitCode === 0 ? 'SUCCESS' : 'ERROR')
-        }
-      });
+      try {
+        executionRecord = await prisma.codeExecution.create({
+          data: {
+            sessionId: parseInt(sessionId, 10),
+            candidateId: parseInt(candidateId, 10),
+            questionId: questionId ? parseInt(questionId, 10) : null,
+            language: langKey,
+            status: result.timedOut ? 'TIMEOUT' : (result.exitCode === 0 ? 'SUCCESS' : 'ERROR'),
+            output: result.stdout || null,
+            error: result.stderr || null,
+            executionTime: result.executionTimeMs ? parseFloat(result.executionTimeMs) : null
+          }
+        });
+      } catch (err) {
+        console.warn('Could not store CodeExecution details:', err.message);
+      }
     }
 
     return {
