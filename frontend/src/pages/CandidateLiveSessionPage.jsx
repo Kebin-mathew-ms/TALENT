@@ -29,6 +29,8 @@ import {
   MessageSquare,
   Tv,
   X,
+  Minimize2,
+  Maximize2,
 } from 'lucide-react';
 import '../styles/dashboard.css';
 
@@ -70,6 +72,7 @@ export const CandidateLiveSessionPage = () => {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isAdminBroadcasting, setIsAdminBroadcasting] = useState(false);
+  const [isAdminVideoMinimized, setIsAdminVideoMinimized] = useState(false);
   const [adminBroadcastStream, setAdminBroadcastStream] = useState(null);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
 
@@ -939,7 +942,7 @@ export const CandidateLiveSessionPage = () => {
             position: 'fixed',
             top: '4.5rem',
             right: showChatPanel ? '380px' : '1.5rem',
-            width: 320,
+            width: isAdminVideoMinimized ? 230 : 320,
             background: '#0a0e1a',
             border: '2px solid #34d399',
             borderRadius: 'var(--radius-lg)',
@@ -953,34 +956,64 @@ export const CandidateLiveSessionPage = () => {
         >
           <div
             style={{
-              padding: '0.6rem 0.85rem',
+              padding: '0.55rem 0.75rem',
               background: 'linear-gradient(135deg, rgba(52,211,153,0.25) 0%, rgba(99,102,241,0.25) 100%)',
-              borderBottom: '1px solid var(--border)',
+              borderBottom: isAdminVideoMinimized ? 'none' : '1px solid var(--border)',
               display: 'flex',
               alignItems: 'center',
               justify: 'space-between',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '0.85rem', color: '#fff' }}>
-              <Tv size={16} color="#34d399" />
-              <span>Admin Live Video Broadcast</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 800, fontSize: '0.8rem', color: '#fff' }}>
+              <Tv size={15} color="#34d399" />
+              <span>{isAdminVideoMinimized ? 'Admin Live' : 'Admin Live Broadcast'}</span>
             </div>
-            <span
-              style={{
-                background: '#ef4444',
-                color: '#fff',
-                fontSize: '0.65rem',
-                fontWeight: 800,
-                padding: '0.15rem 0.5rem',
-                borderRadius: 4,
-                letterSpacing: '0.05em',
-              }}
-            >
-              LIVE
-            </span>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span
+                style={{
+                  background: '#ef4444',
+                  color: '#fff',
+                  fontSize: '0.6rem',
+                  fontWeight: 800,
+                  padding: '0.1rem 0.35rem',
+                  borderRadius: 4,
+                  letterSpacing: '0.05em',
+                }}
+              >
+                LIVE
+              </span>
+
+              <button
+                onClick={() => setIsAdminVideoMinimized(!isAdminVideoMinimized)}
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  border: 'none',
+                  borderRadius: 4,
+                  color: '#fff',
+                  cursor: 'pointer',
+                  padding: '0.2rem 0.35rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justify: 'center',
+                }}
+                title={isAdminVideoMinimized ? 'Expand Admin Video' : 'Minimize Admin Video'}
+              >
+                {isAdminVideoMinimized ? <Maximize2 size={13} /> : <Minimize2 size={13} />}
+              </button>
+            </div>
           </div>
 
-          <div style={{ width: '100%', height: 190, background: '#000', position: 'relative' }}>
+          <div
+            style={{
+              width: '100%',
+              height: isAdminVideoMinimized ? 0 : 190,
+              background: '#000',
+              position: 'relative',
+              overflow: 'hidden',
+              transition: 'height 0.3s ease',
+            }}
+          >
             <video
               ref={adminVideoRef}
               autoPlay
