@@ -70,12 +70,70 @@ export const LiveExamMeetingModal = ({
     }
   }, [chatMessages]);
 
+  const adminPeerConnectionRef = useRef(null);
+
   // Auto-attach admin video stream to video element when mounted
   useEffect(() => {
     if (adminVideoRef.current && adminVideoStream) {
       adminVideoRef.current.srcObject = adminVideoStream;
     }
   }, [adminVideoStream, isAdminBroadcasting]);
+
+  // Listen for WebRTC answer signals from candidates
+  useEffect(() => {
+    const handleAdminAnswer = async ({ answer }) => {
+      if (adminPeerConnectionRef.current) {
+        try {
+          await adminPeerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+        } catch (e) {
+          console.error('Error setting remote description from candidate:', e);
+        }
+      }
+    };
+
+    const handleAdminIce = async ({ candidate }) => {
+      if (adminPeerConnectionRef.current && candidate) {
+        try {
+          await adminPeerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (e) {}
+      }
+    };
+
+    socketService.on('admin:answer', handleAdminAnswer);
+    socketService.on('admin:ice-candidate', handleAdminIce);
+
+    return () => {
+      socketService.off('admin:answer', handleAdminAnswer);
+      socketService.off('admin:ice-candidate', handleAdminIce);
+    };
+  }, []);
+
+  const startAdminWebRTCOffer = async (stream) => {
+    try {
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+        ],
+      });
+      adminPeerConnectionRef.current = pc;
+
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socketService.emitAdminIceCandidate({ assessmentId, candidate: event.candidate });
+        }
+      };
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      socketService.emitAdminOffer({ assessmentId, offer });
+    } catch (err) {
+      console.error('Error starting admin WebRTC broadcast offer:', err);
+    }
+  };
 
   // Toggle Admin Camera Broadcast
   const toggleAdminVideoBroadcast = async () => {
@@ -86,10 +144,16 @@ export const LiveExamMeetingModal = ({
         setAdminVideoStream(stream);
         setIsAdminBroadcasting(true);
         socketService.broadcastAdminStream({ assessmentId, isBroadcasting: true });
+
+        await startAdminWebRTCOffer(stream);
       } catch (err) {
         alert('Could not access Admin camera/microphone: ' + err.message);
       }
     } else {
+      if (adminPeerConnectionRef.current) {
+        adminPeerConnectionRef.current.close();
+        adminPeerConnectionRef.current = null;
+      }
       if (adminMediaStreamRef.current) {
         adminMediaStreamRef.current.getTracks().forEach((track) => track.stop());
         adminMediaStreamRef.current = null;

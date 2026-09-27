@@ -70,13 +70,23 @@ export const CandidateLiveSessionPage = () => {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isAdminBroadcasting, setIsAdminBroadcasting] = useState(false);
+  const [adminBroadcastStream, setAdminBroadcastStream] = useState(null);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
 
   const localVideoRef = useRef(null);
+  const adminVideoRef = useRef(null);
+  const adminPeerRef = useRef(null);
   const webrtcRef = useRef(null);
   const saveTimeoutRef = useRef(null);
   const lastBlurTimeRef = useRef(0);
   const chatScrollRef = useRef(null);
+
+  // Auto-attach admin video stream to admin video element when mounted
+  useEffect(() => {
+    if (adminVideoRef.current && adminBroadcastStream) {
+      adminVideoRef.current.srcObject = adminBroadcastStream;
+    }
+  }, [adminBroadcastStream, isAdminBroadcasting]);
 
   // Initialize Candidate Session
   useEffect(() => {
@@ -230,11 +240,60 @@ export const CandidateLiveSessionPage = () => {
 
     const handleAdminStream = ({ isBroadcasting }) => {
       setIsAdminBroadcasting(isBroadcasting);
+      if (!isBroadcasting) {
+        setAdminBroadcastStream(null);
+        if (adminPeerRef.current) {
+          adminPeerRef.current.close();
+          adminPeerRef.current = null;
+        }
+      }
+    };
+
+    const handleAdminOffer = async ({ offer, senderSocketId }) => {
+      try {
+        const pc = new RTCPeerConnection({
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+          ],
+        });
+        adminPeerRef.current = pc;
+
+        pc.ontrack = (event) => {
+          if (event.streams[0]) {
+            setAdminBroadcastStream(event.streams[0]);
+          }
+        };
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate) {
+            socketService.emitAdminIceCandidate({ assessmentId, candidate: event.candidate, targetSocketId: senderSocketId });
+          }
+        };
+
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+        socketService.emitAdminAnswer({ assessmentId, answer, targetSocketId: senderSocketId });
+      } catch (err) {
+        console.error('Candidate failed to process Admin WebRTC offer:', err);
+      }
+    };
+
+    const handleAdminIce = async ({ candidate }) => {
+      if (adminPeerRef.current && candidate) {
+        try {
+          await adminPeerRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (e) {}
+      }
     };
 
     socketService.on('chat:history', handleChatHistory);
     socketService.on('chat:message', handleChatMessage);
     socketService.on('meeting:admin-stream', handleAdminStream);
+    socketService.on('admin:offer', handleAdminOffer);
+    socketService.on('admin:ice-candidate', handleAdminIce);
 
     return () => {
       socketService.leaveSessionRoom(session.id);
@@ -248,6 +307,9 @@ export const CandidateLiveSessionPage = () => {
       socketService.off('chat:history', handleChatHistory);
       socketService.off('chat:message', handleChatMessage);
       socketService.off('meeting:admin-stream', handleAdminStream);
+      socketService.off('admin:offer', handleAdminOffer);
+      socketService.off('admin:ice-candidate', handleAdminIce);
+      if (adminPeerRef.current) adminPeerRef.current.close();
       if (webrtcRef.current) webrtcRef.current.cleanup();
     };
   }, [token, session?.id]);
@@ -870,6 +932,70 @@ export const CandidateLiveSessionPage = () => {
           </div>
         </div>
       )}
+      {/* Floating Live Admin Video & Audio Broadcast Window */}
+      {isAdminBroadcasting && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '4.5rem',
+            right: showChatPanel ? '380px' : '1.5rem',
+            width: 320,
+            background: '#0a0e1a',
+            border: '2px solid #34d399',
+            borderRadius: 'var(--radius-lg)',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.7)',
+            zIndex: 9999,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            transition: 'all 0.3s ease',
+          }}
+        >
+          <div
+            style={{
+              padding: '0.6rem 0.85rem',
+              background: 'linear-gradient(135deg, rgba(52,211,153,0.25) 0%, rgba(99,102,241,0.25) 100%)',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justify: 'space-between',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '0.85rem', color: '#fff' }}>
+              <Tv size={16} color="#34d399" />
+              <span>Admin Live Video Broadcast</span>
+            </div>
+            <span
+              style={{
+                background: '#ef4444',
+                color: '#fff',
+                fontSize: '0.65rem',
+                fontWeight: 800,
+                padding: '0.15rem 0.5rem',
+                borderRadius: 4,
+                letterSpacing: '0.05em',
+              }}
+            >
+              LIVE
+            </span>
+          </div>
+
+          <div style={{ width: '100%', height: 190, background: '#000', position: 'relative' }}>
+            <video
+              ref={adminVideoRef}
+              autoPlay
+              playsInline
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+            {!adminBroadcastStream && (
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.775rem', padding: '1rem', textAlign: 'center' }}>
+                Connecting to Admin live video & audio feed...
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Candidate Live Meeting & Admin Chat Side Panel */}
       {showChatPanel && (
         <div

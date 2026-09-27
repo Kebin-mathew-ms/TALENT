@@ -127,6 +127,24 @@ class SocketService {
     }
   }
 
+  emitAdminOffer({ assessmentId, offer }) {
+    if (this.socket) {
+      this.socket.emit('admin:offer', { assessmentId, offer });
+    }
+  }
+
+  emitAdminAnswer({ assessmentId, answer, targetSocketId }) {
+    if (this.socket) {
+      this.socket.emit('admin:answer', { assessmentId, answer, targetSocketId });
+    }
+  }
+
+  emitAdminIceCandidate({ assessmentId, candidate, targetSocketId }) {
+    if (this.socket) {
+      this.socket.emit('admin:ice-candidate', { assessmentId, candidate, targetSocketId });
+    }
+  }
+
   // Event Listeners
   on(event, callback) {
     if (this.socket) {

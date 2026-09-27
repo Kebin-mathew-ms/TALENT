@@ -89,7 +89,7 @@ const registerAssessmentHandlers = (io, socket) => {
     }
   });
 
-  // Admin Video/Audio Broadcast Toggle Signal
+  // Admin Video/Audio Broadcast Toggle Signal & WebRTC Signaling
   socket.on(EVENTS.MEETING_ADMIN_STREAM, ({ assessmentId, isBroadcasting }) => {
     const assId = parseInt(assessmentId, 10);
     if (!isNaN(assId) && socket.user.role === 'INTERVIEWER') {
@@ -101,6 +101,31 @@ const registerAssessmentHandlers = (io, socket) => {
         isBroadcasting,
         timestamp: new Date().toISOString(),
       });
+    }
+  });
+
+  socket.on('admin:offer', ({ assessmentId, offer }) => {
+    const assId = parseInt(assessmentId, 10);
+    if (!isNaN(assId)) {
+      socket.to(`assessment_${assId}`).emit('admin:offer', { offer, senderSocketId: socket.id });
+    }
+  });
+
+  socket.on('admin:answer', ({ assessmentId, answer, targetSocketId }) => {
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('admin:answer', { answer, senderSocketId: socket.id });
+    } else {
+      const assId = parseInt(assessmentId, 10);
+      if (!isNaN(assId)) socket.to(`assessment_${assId}`).emit('admin:answer', { answer, senderSocketId: socket.id });
+    }
+  });
+
+  socket.on('admin:ice-candidate', ({ assessmentId, candidate, targetSocketId }) => {
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('admin:ice-candidate', { candidate, senderSocketId: socket.id });
+    } else {
+      const assId = parseInt(assessmentId, 10);
+      if (!isNaN(assId)) socket.to(`assessment_${assId}`).emit('admin:ice-candidate', { candidate, senderSocketId: socket.id });
     }
   });
 
