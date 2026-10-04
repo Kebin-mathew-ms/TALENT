@@ -35,7 +35,7 @@ class AIEvaluationService {
       });
 
       const apiKey = process.env.GROQ_API_KEY;
-      const modelName = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+      const modelName = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 
       if (!apiKey) {
         console.warn('GROQ_API_KEY not configured in backend/.env. Using intelligent automated evaluation fallback.');
