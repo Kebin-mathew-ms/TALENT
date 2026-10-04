@@ -81,6 +81,7 @@ model Assessment {
   status      AssessmentStatus @default(DRAFT)
   createdBy   Int
   creator     User             @relation("CreatedAssessments", fields: [createdBy], references: [id], onDelete: Cascade)
+  allowCodeCopy Boolean          @default(true)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 

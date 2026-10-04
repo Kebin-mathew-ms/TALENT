@@ -43,9 +43,9 @@ const getAssessment = async (req, res, next) => {
 
 const createAssessment = async (req, res, next) => {
   try {
-    const { title, description, duration, startTime, endTime, candidateIds, questionIds } = req.body;
+    const { title, description, duration, startTime, endTime, allowCodeCopy, candidateIds, questionIds } = req.body;
     const assessment = await assessmentService.createAssessment(
-      { title, description, duration, startTime, endTime, candidateIds, questionIds },
+      { title, description, duration, startTime, endTime, allowCodeCopy, candidateIds, questionIds },
       req.user.id
     );
 
@@ -62,10 +62,10 @@ const createAssessment = async (req, res, next) => {
 const updateAssessment = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { title, description, duration, startTime, endTime, candidateIds, questionIds } = req.body;
+    const { title, description, duration, startTime, endTime, allowCodeCopy, candidateIds, questionIds } = req.body;
     const assessment = await assessmentService.updateAssessment(
       id,
-      { title, description, duration, startTime, endTime, candidateIds, questionIds },
+      { title, description, duration, startTime, endTime, allowCodeCopy, candidateIds, questionIds },
       req.user.id
     );
 

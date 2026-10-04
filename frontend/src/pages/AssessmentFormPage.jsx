@@ -4,7 +4,7 @@ import { DashboardLayout } from '../layouts/DashboardLayout';
 import { createAssessment, fetchAssessmentById, updateAssessment } from '../services/assessmentService';
 import { CandidateSelector } from '../components/CandidateSelector';
 import { QuestionSelector } from '../components/QuestionSelector';
-import { Plus, Save, ArrowLeft, AlertCircle, Calendar, Clock } from 'lucide-react';
+import { Plus, Save, ArrowLeft, AlertCircle, Calendar, Clock, ShieldCheck, ShieldAlert } from 'lucide-react';
 import '../styles/dashboard.css';
 
 export const AssessmentFormPage = () => {
@@ -15,6 +15,7 @@ export const AssessmentFormPage = () => {
   const [description, setDescription] = useState('');
   const [duration, setDuration] = useState(60);
   const [startTime, setStartTime] = useState('');
+  const [allowCodeCopy, setAllowCodeCopy] = useState(true);
   const [selectedCandidateIds, setSelectedCandidateIds] = useState([]);
   const [selectedQuestionIds, setSelectedQuestionIds] = useState([]);
 
@@ -34,6 +35,7 @@ export const AssessmentFormPage = () => {
             setTitle(a.title || '');
             setDescription(a.description || '');
             setDuration(a.duration || 60);
+            setAllowCodeCopy(a.allowCodeCopy !== undefined ? a.allowCodeCopy : true);
 
             if (a.startTime) {
               // Convert ISO string to format suitable for datetime-local input
@@ -84,6 +86,7 @@ export const AssessmentFormPage = () => {
       description,
       duration: parseInt(duration, 10) || 60,
       startTime: startTime ? new Date(startTime).toISOString() : null,
+      allowCodeCopy,
       candidateIds: selectedCandidateIds,
       questionIds: selectedQuestionIds,
     };
@@ -199,6 +202,52 @@ export const AssessmentFormPage = () => {
                   required
                 />
               </div>
+            </div>
+
+            {/* Assessment Security & Proctoring Settings */}
+            <div
+              style={{
+                marginTop: '1.5rem',
+                padding: '1.25rem',
+                background: 'var(--bg-input)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
+                {allowCodeCopy ? <ShieldCheck size={18} color="#34d399" /> : <ShieldAlert size={18} color="#f43f5e" />}
+                <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Proctoring & Security Controls</span>
+              </div>
+              
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.75rem',
+                  cursor: 'pointer',
+                  padding: '0.75rem',
+                  background: 'var(--bg-card)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: allowCodeCopy ? '1px solid var(--border)' : '1px solid rgba(244, 63, 94, 0.4)',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={allowCodeCopy}
+                  onChange={(e) => setAllowCodeCopy(e.target.checked)}
+                  style={{ width: 18, height: 18, marginTop: 2, cursor: 'pointer' }}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#f8fafc' }}>
+                    Allow Candidate Code Copy / Paste & Context Menu in Console
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                    {allowCodeCopy
+                      ? 'Candidates are permitted to copy code, paste snippets, and use the right-click menu inside Monaco Editor.'
+                      : 'RESTRICTED MODE ACTIVE: Right-click context menu, Copy (Ctrl+C), Paste (Ctrl+V), and Cut (Ctrl+X) are disabled in candidate console.'}
+                  </div>
+                </div>
+              </label>
             </div>
 
             {/* Candidate Selector Component */}

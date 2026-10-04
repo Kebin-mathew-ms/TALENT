@@ -147,6 +147,13 @@ export const AssessmentDetailPage = () => {
                 {questions.length} Questions Configured
               </div>
             </div>
+
+            <div>
+              <span className="metric-label">Console Copy Control</span>
+              <div style={{ fontWeight: 600, fontSize: '0.95rem', marginTop: '0.25rem', color: assessment.allowCodeCopy !== false ? '#34d399' : '#f43f5e' }}>
+                {assessment.allowCodeCopy !== false ? '● Allowed (Normal)' : '🔒 Copying Disabled'}
+              </div>
+            </div>
           </div>
         </div>
 

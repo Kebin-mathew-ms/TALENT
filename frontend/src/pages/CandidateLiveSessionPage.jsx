@@ -47,6 +47,7 @@ export const CandidateLiveSessionPage = () => {
   const [language, setLanguage] = useState('javascript');
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [isConnected, setIsConnected] = useState(true);
+  const [allowCodeCopy, setAllowCodeCopy] = useState(true);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -83,6 +84,7 @@ export const CandidateLiveSessionPage = () => {
   const saveTimeoutRef = useRef(null);
   const lastBlurTimeRef = useRef(0);
   const chatScrollRef = useRef(null);
+  const editorContainerRef = useRef(null);
 
   // Auto-attach admin video stream to admin video element when mounted
   useEffect(() => {
@@ -107,6 +109,7 @@ export const CandidateLiveSessionPage = () => {
             const qList = fullSession.assessment?.questions?.map((qItem) => qItem.question) || [];
             setQuestions(qList);
             setTimerSeconds(timer.remainingSeconds);
+            setAllowCodeCopy(fullSession.assessment?.allowCodeCopy !== undefined ? fullSession.assessment.allowCodeCopy : true);
 
             // Per-question code map initialized with unique templates
             const initialMap = {};
@@ -366,6 +369,57 @@ export const CandidateLiveSessionPage = () => {
       window.removeEventListener('blur', handleWindowBlur);
     };
   }, [session?.id]);
+
+  // Enforce Code Copy/Paste & Context Menu Restriction
+  useEffect(() => {
+    if (allowCodeCopy) return;
+
+    const container = editorContainerRef.current;
+    if (!container) return;
+
+    const handleBlockedAction = (e, actionName) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setActiveWarning({
+        warningNumber: 'SECURITY',
+        eventType: 'COPY_PASTE_RESTRICTED',
+        message: `Code ${actionName} is disabled by admin for this assessment.`,
+      });
+      if (session?.id) {
+        logProctoringIncident({
+          sessionId: session.id,
+          eventType: 'COPY_PASTE_RESTRICTED',
+          details: `Candidate attempted restricted ${actionName} action in console.`,
+        }).catch(() => {});
+      }
+    };
+
+    const handleCopy = (e) => handleBlockedAction(e, 'copy');
+    const handleCut = (e) => handleBlockedAction(e, 'cut');
+    const handlePaste = (e) => handleBlockedAction(e, 'paste');
+    const handleContextMenu = (e) => handleBlockedAction(e, 'context menu');
+
+    const handleKeyDown = (e) => {
+      const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+      if (isCtrlOrCmd && ['c', 'v', 'x', 'C', 'V', 'X'].includes(e.key)) {
+        handleBlockedAction(e, `shortcut (${e.key.toUpperCase()})`);
+      }
+    };
+
+    container.addEventListener('copy', handleCopy, true);
+    container.addEventListener('cut', handleCut, true);
+    container.addEventListener('paste', handlePaste, true);
+    container.addEventListener('contextmenu', handleContextMenu, true);
+    container.addEventListener('keydown', handleKeyDown, true);
+
+    return () => {
+      container.removeEventListener('copy', handleCopy, true);
+      container.removeEventListener('cut', handleCut, true);
+      container.removeEventListener('paste', handlePaste, true);
+      container.removeEventListener('contextmenu', handleContextMenu, true);
+      container.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [allowCodeCopy, session?.id]);
 
   // Server-Synced Countdown Timer
   useEffect(() => {
@@ -846,7 +900,7 @@ export const CandidateLiveSessionPage = () => {
           </div>
 
           {/* Monaco Editor Component */}
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1 }} ref={editorContainerRef}>
             <Editor
               height="100%"
               language={language.toLowerCase()}
@@ -858,6 +912,7 @@ export const CandidateLiveSessionPage = () => {
                 minimap: { enabled: false },
                 scrollBeyondLastLine: false,
                 automaticLayout: true,
+                contextmenu: allowCodeCopy,
               }}
             />
           </div>

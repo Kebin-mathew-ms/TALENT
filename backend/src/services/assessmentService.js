@@ -149,7 +149,7 @@ const getAssessmentById = async (id, userId, userRole) => {
 };
 
 const createAssessment = async (
-  { title, description, duration, startTime, endTime, candidateIds = [], questionIds = [] },
+  { title, description, duration, startTime, endTime, allowCodeCopy = true, candidateIds = [], questionIds = [] },
   createdBy
 ) => {
   if (!title) {
@@ -204,6 +204,7 @@ const createAssessment = async (
         duration: durationMins,
         startTime: start,
         endTime: end,
+        allowCodeCopy: allowCodeCopy !== undefined ? Boolean(allowCodeCopy) : true,
         status: initialStatus,
         createdBy,
       },
@@ -252,7 +253,7 @@ const createAssessment = async (
 
 const updateAssessment = async (
   id,
-  { title, description, duration, startTime, endTime, candidateIds, questionIds },
+  { title, description, duration, startTime, endTime, allowCodeCopy, candidateIds, questionIds },
   userId
 ) => {
   const assessmentId = parseInt(id, 10);
@@ -292,6 +293,7 @@ const updateAssessment = async (
       data: {
         ...(title && { title: title.trim() }),
         ...(description !== undefined && { description }),
+        ...(allowCodeCopy !== undefined && { allowCodeCopy: Boolean(allowCodeCopy) }),
         duration: durationMins,
         startTime: start,
         endTime: end,
