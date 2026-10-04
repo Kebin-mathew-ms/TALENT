@@ -197,18 +197,28 @@ const createAssessment = async (
     const initialStatus = start ? (new Date() >= start && new Date() <= end ? 'LIVE' : 'SCHEDULED') : 'DRAFT';
 
     // 3. Create Assessment
-    const assessment = await tx.assessment.create({
-      data: {
-        title: title.trim(),
-        description: description ? description.trim() : null,
-        duration: durationMins,
-        startTime: start,
-        endTime: end,
-        allowCodeCopy: allowCodeCopy !== undefined ? Boolean(allowCodeCopy) : true,
-        status: initialStatus,
-        createdBy,
-      },
-    });
+    const createData = {
+      title: title.trim(),
+      description: description ? description.trim() : null,
+      duration: durationMins,
+      startTime: start,
+      endTime: end,
+      allowCodeCopy: allowCodeCopy !== undefined ? Boolean(allowCodeCopy) : true,
+      status: initialStatus,
+      createdBy,
+    };
+
+    let assessment;
+    try {
+      assessment = await tx.assessment.create({ data: createData });
+    } catch (err) {
+      if (err.message && err.message.includes('allowCodeCopy')) {
+        delete createData.allowCodeCopy;
+        assessment = await tx.assessment.create({ data: createData });
+      } else {
+        throw err;
+      }
+    }
 
     // 4. Create AssessmentCandidates
     if (uniqueCandidateIds.length > 0) {
@@ -283,17 +293,32 @@ const updateAssessment = async (
       end = new Date(start.getTime() + durationMins * 60 * 1000);
     }
 
-    const updatedAssessment = await tx.assessment.update({
-      where: { id: assessmentId },
-      data: {
-        ...(title && { title: title.trim() }),
-        ...(description !== undefined && { description }),
-        ...(allowCodeCopy !== undefined && { allowCodeCopy: Boolean(allowCodeCopy) }),
-        duration: durationMins,
-        startTime: start,
-        endTime: end,
-      },
-    });
+    const updateData = {
+      ...(title && { title: title.trim() }),
+      ...(description !== undefined && { description }),
+      ...(allowCodeCopy !== undefined && { allowCodeCopy: Boolean(allowCodeCopy) }),
+      duration: durationMins,
+      startTime: start,
+      endTime: end,
+    };
+
+    let updatedAssessment;
+    try {
+      updatedAssessment = await tx.assessment.update({
+        where: { id: assessmentId },
+        data: updateData,
+      });
+    } catch (err) {
+      if (err.message && err.message.includes('allowCodeCopy')) {
+        delete updateData.allowCodeCopy;
+        updatedAssessment = await tx.assessment.update({
+          where: { id: assessmentId },
+          data: updateData,
+        });
+      } else {
+        throw err;
+      }
+    }
 
     if (candidateIds && Array.isArray(candidateIds)) {
       const uniqueCandidates = [...new Set(candidateIds.map((id) => parseInt(id, 10)))];
