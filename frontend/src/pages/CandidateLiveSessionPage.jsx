@@ -374,9 +374,6 @@ export const CandidateLiveSessionPage = () => {
   useEffect(() => {
     if (allowCodeCopy) return;
 
-    const container = editorContainerRef.current;
-    if (!container) return;
-
     const handleBlockedAction = (e, actionName) => {
       e.preventDefault();
       e.stopPropagation();
@@ -406,18 +403,18 @@ export const CandidateLiveSessionPage = () => {
       }
     };
 
-    container.addEventListener('copy', handleCopy, true);
-    container.addEventListener('cut', handleCut, true);
-    container.addEventListener('paste', handlePaste, true);
-    container.addEventListener('contextmenu', handleContextMenu, true);
-    container.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('copy', handleCopy, true);
+    window.addEventListener('cut', handleCut, true);
+    window.addEventListener('paste', handlePaste, true);
+    window.addEventListener('contextmenu', handleContextMenu, true);
+    window.addEventListener('keydown', handleKeyDown, true);
 
     return () => {
-      container.removeEventListener('copy', handleCopy, true);
-      container.removeEventListener('cut', handleCut, true);
-      container.removeEventListener('paste', handlePaste, true);
-      container.removeEventListener('contextmenu', handleContextMenu, true);
-      container.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('copy', handleCopy, true);
+      window.removeEventListener('cut', handleCut, true);
+      window.removeEventListener('paste', handlePaste, true);
+      window.removeEventListener('contextmenu', handleContextMenu, true);
+      window.removeEventListener('keydown', handleKeyDown, true);
     };
   }, [allowCodeCopy, session?.id]);
 
@@ -906,6 +903,31 @@ export const CandidateLiveSessionPage = () => {
               language={language.toLowerCase()}
               value={code}
               onChange={handleCodeChange}
+              onMount={(editor, monaco) => {
+                if (!allowCodeCopy) {
+                  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyC, () => {
+                    setActiveWarning({
+                      warningNumber: 'SECURITY',
+                      eventType: 'COPY_PASTE_RESTRICTED',
+                      message: 'Code Copy (Ctrl+C) is disabled by admin for this assessment.',
+                    });
+                  });
+                  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV, () => {
+                    setActiveWarning({
+                      warningNumber: 'SECURITY',
+                      eventType: 'COPY_PASTE_RESTRICTED',
+                      message: 'Code Paste (Ctrl+V) is disabled by admin for this assessment.',
+                    });
+                  });
+                  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyX, () => {
+                    setActiveWarning({
+                      warningNumber: 'SECURITY',
+                      eventType: 'COPY_PASTE_RESTRICTED',
+                      message: 'Code Cut (Ctrl+X) is disabled by admin for this assessment.',
+                    });
+                  });
+                }
+              }}
               theme="vs-dark"
               options={{
                 fontSize: 14,
@@ -913,6 +935,8 @@ export const CandidateLiveSessionPage = () => {
                 scrollBeyondLastLine: false,
                 automaticLayout: true,
                 contextmenu: allowCodeCopy,
+                copyWithSyntaxHighlighting: allowCodeCopy,
+                dragAndDrop: allowCodeCopy,
               }}
             />
           </div>
