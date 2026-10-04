@@ -173,23 +173,26 @@ Provide a structured evaluation in STRICT JSON format with no additional text or
   static async fallbackEvaluation(submission, evaluationId) {
     const qTitle = (submission.question?.title || '').toLowerCase();
     const qDesc = (submission.question?.description || '').toLowerCase();
-    const codeText = (submission.code || '').toLowerCase();
+    const expectedOutput = (submission.question?.expectedOutput || '').trim().toLowerCase();
+    const code = submission.code || '';
+    const codeText = code.toLowerCase();
+    const output = (submission.codeExecution?.output || '').trim().toLowerCase();
+    const error = (submission.codeExecution?.error || '').trim();
+    const execTime = submission.codeExecution?.executionTime || 100;
 
-    // Verify if candidate code is relevant to the question
     let isRelevant = true;
 
-    // 1. If code contains explicit comment header for a DIFFERENT problem title
+    // 1. Verify Problem Relevance
     if (codeText.includes('write your solution for:')) {
       const match = codeText.match(/write your solution for:\s*([^\n]+)/i);
       if (match && match[1]) {
         const commentTitle = match[1].trim().toLowerCase();
-        if (qTitle && !qTitle.includes(commentTitle.slice(0, 10)) && !commentTitle.includes(qTitle.slice(0, 10))) {
+        if (qTitle && !qTitle.includes(commentTitle.slice(0, 8)) && !commentTitle.includes(qTitle.slice(0, 8))) {
           isRelevant = false;
         }
       }
     }
 
-    // 2. Category / Domain mismatch (e.g., BST tree code for SQL or String question)
     if (qTitle.includes('sql') || qTitle.includes('salary') || qTitle.includes('department')) {
       if (codeText.includes('inorder') || codeText.includes('node.left') || codeText.includes('binary search tree')) {
         isRelevant = false;
@@ -200,22 +203,85 @@ Provide a structured evaluation in STRICT JSON format with no additional text or
       }
     }
 
-    const hasError = !!submission.codeExecution?.error;
-    const isSuccess = isRelevant && !hasError;
+    if (!isRelevant) {
+      const updatedEval = await prisma.aIEvaluation.update({
+        where: { id: evaluationId },
+        data: {
+          correctness: 10,
+          codeQuality: 25,
+          efficiency: 15,
+          problemSolving: 10,
+          overallScore: 15,
+          feedback: `Irrelevant Solution: The code submitted does not solve the target problem "${submission.question?.title || 'Question'}".`,
+          suggestions: JSON.stringify([`Ensure your code directly implements the solution for "${submission.question?.title || 'Question'}"`]),
+          status: 'COMPLETED'
+        }
+      });
+      await prisma.submission.update({ where: { id: submission.id }, data: { status: 'EVALUATED' } });
+      return updatedEval;
+    }
 
-    const correctness = isRelevant ? (isSuccess ? 85 : 30) : 10;
-    const codeQuality = isRelevant ? (submission.code.length > 50 ? 80 : 40) : 20;
-    const efficiency = isRelevant ? 85 : 10;
-    const problemSolving = isRelevant ? (isSuccess ? 85 : 30) : 10;
-    const overallScore = Math.round((correctness + codeQuality + efficiency + problemSolving) / 4);
+    // 2. Dynamic Correctness Score (0-100)
+    let correctness = 60;
+    if (error) {
+      correctness = 25;
+    } else if (output) {
+      if (expectedOutput && output.includes(expectedOutput)) {
+        correctness = 95;
+      } else if (output.includes('return value:') || output.includes('output:')) {
+        correctness = 88;
+      } else {
+        correctness = 75;
+      }
+    } else {
+      correctness = 70;
+    }
 
-    const feedback = !isRelevant
-      ? `Irrelevant Solution: Code submitted does not solve the target problem "${submission.question?.title || 'Question'}".`
-      : (isSuccess ? 'Code executed cleanly with 0 exit code.' : `Execution reported errors: ${submission.codeExecution?.error || 'Runtime issue'}.`);
+    // 3. Dynamic Code Quality Score (0-100)
+    let codeQuality = 65;
+    const lineCount = code.split('\n').length;
+    if (lineCount >= 5 && lineCount <= 50) codeQuality += 10;
+    if (/\/\*[\s\S]*?\*\/|\/\/.*/.test(code) || /#.*/.test(code)) codeQuality += 8;
+    if (/\b(const|let|var|def|class|function)\b/.test(code)) codeQuality += 7;
+    if (/[\t ]{2,}/.test(code)) codeQuality += 5;
+    if (code.length < 30) codeQuality -= 20;
+    codeQuality = Math.min(98, Math.max(20, codeQuality));
 
-    const suggestions = isRelevant
-      ? ['Add unit test edge cases', 'Optimize memory & variable usage']
-      : [`Ensure your solution addresses "${submission.question?.title || 'the question'}" specifications.`];
+    // 4. Dynamic Efficiency Score (0-100)
+    let efficiency = 85;
+    const nestedLoops = (code.match(/\b(for|while)\b[\s\S]*?\b(for|while)\b/g) || []).length;
+    if (nestedLoops >= 2) efficiency -= 25;
+    else if (nestedLoops === 1) efficiency -= 10;
+    if (execTime > 1000) efficiency -= 20;
+    else if (execTime < 100) efficiency += 5;
+    efficiency = Math.min(98, Math.max(30, efficiency));
+
+    // 5. Dynamic Problem Solving Score (0-100)
+    let problemSolving = 70;
+    if (/\b(map|filter|reduce|set|stack|queue|recursion|head\.next|prev|current)\b/i.test(code)) problemSolving += 15;
+    if (/\b(if|else|switch)\b/.test(code)) problemSolving += 10;
+    if (error) problemSolving -= 30;
+    problemSolving = Math.min(98, Math.max(15, problemSolving));
+
+    // Overall Score Calculation (Weighted)
+    const overallScore = Math.round((correctness * 0.4) + (codeQuality * 0.2) + (efficiency * 0.2) + (problemSolving * 0.2));
+
+    let feedback = '';
+    if (error) {
+      feedback = `Runtime Error Encountered: ${error.split('\n')[0]}`;
+    } else if (correctness >= 90) {
+      feedback = `Excellent solution! Code executed cleanly with optimal output for "${submission.question?.title || 'Problem'}".`;
+    } else if (correctness >= 75) {
+      feedback = `Good implementation for "${submission.question?.title || 'Problem'}". Code executed cleanly without runtime errors.`;
+    } else {
+      feedback = `Basic implementation provided. Review algorithmic logic for "${submission.question?.title || 'Problem'}".`;
+    }
+
+    const suggestions = [];
+    if (nestedLoops >= 1) suggestions.push('Optimize loop complexity to improve performance.');
+    if (!/\/\//.test(code) && !/#/.test(code)) suggestions.push('Add inline comments explaining core algorithmic steps.');
+    if (correctness < 85) suggestions.push('Test solution against edge cases (empty inputs, single element arrays).');
+    if (suggestions.length === 0) suggestions.push('Code structure is clean and well formatted.');
 
     const updatedEval = await prisma.aIEvaluation.update({
       where: { id: evaluationId },
