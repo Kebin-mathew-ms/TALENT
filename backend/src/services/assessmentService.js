@@ -25,6 +25,29 @@ const getAssessments = async ({ page = 1, limit = 10, search = '', status, userI
   const pageNum = parseInt(page, 10) || 1;
   const limitNum = parseInt(limit, 10) || 10;
   const skip = (pageNum - 1) * limitNum;
+  const now = new Date();
+
+  // Auto-sync status column in DB for expired or live assessments
+  try {
+    await prisma.assessment.updateMany({
+      where: {
+        createdBy: userId,
+        status: { notIn: ['CANCELLED', 'DRAFT', 'COMPLETED'] },
+        endTime: { lte: now },
+      },
+      data: { status: 'COMPLETED' },
+    });
+
+    await prisma.assessment.updateMany({
+      where: {
+        createdBy: userId,
+        status: 'SCHEDULED',
+        startTime: { lte: now },
+        endTime: { gte: now },
+      },
+      data: { status: 'LIVE' },
+    });
+  } catch (e) {}
 
   const where = {
     createdBy: userId,

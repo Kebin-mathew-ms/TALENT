@@ -23,6 +23,18 @@ const { initSockets } = require('./sockets');
 const app = express();
 const server = http.createServer(app);
 
+// Disable ETag caching for API routes to prevent 304 Not Modified status code issues
+app.disable('etag');
+
+// Prevent caching on API endpoints
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+  next();
+});
+
 // Security Middleware
 app.use(helmet());
 
