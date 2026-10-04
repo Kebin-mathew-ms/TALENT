@@ -173,26 +173,22 @@ export const AssessmentListPage = () => {
                           >
                             <Eye size={15} />
                           </button>
-                          {a.status !== 'LIVE' && a.status !== 'COMPLETED' && (
-                            <button
-                              className="btn-secondary"
-                              style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem' }}
-                              onClick={() => navigate(`/interviewer/assessments/${a.id}/edit`)}
-                              title="Edit Assessment"
-                            >
-                              <Edit3 size={15} />
-                            </button>
-                          )}
-                          {a.status === 'DRAFT' && (
-                            <button
-                              className="btn-secondary"
-                              style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem', color: 'var(--accent-rose)' }}
-                              onClick={() => handleDelete(a.id, a.title)}
-                              title="Delete Assessment"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          )}
+                          <button
+                            className="btn-secondary"
+                            style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem' }}
+                            onClick={() => navigate(`/interviewer/assessments/${a.id}/edit`)}
+                            title="Edit Assessment"
+                          >
+                            <Edit3 size={15} />
+                          </button>
+                          <button
+                            className="btn-secondary"
+                            style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem', color: 'var(--accent-rose)' }}
+                            onClick={() => handleDelete(a.id, a.title)}
+                            title="Delete Assessment"
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         </div>
                       </td>
                     </tr>

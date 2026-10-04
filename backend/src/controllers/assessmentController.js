@@ -66,7 +66,8 @@ const updateAssessment = async (req, res, next) => {
     const assessment = await assessmentService.updateAssessment(
       id,
       { title, description, duration, startTime, endTime, allowCodeCopy, candidateIds, questionIds },
-      req.user.id
+      req.user.id,
+      req.user.role
     );
 
     res.status(200).json({
@@ -82,7 +83,7 @@ const updateAssessment = async (req, res, next) => {
 const deleteAssessment = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const result = await assessmentService.deleteAssessment(id, req.user.id);
+    const result = await assessmentService.deleteAssessment(id, req.user.id, req.user.role);
     res.status(200).json({
       success: true,
       message: result.message,

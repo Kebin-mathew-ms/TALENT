@@ -254,7 +254,8 @@ const createAssessment = async (
 const updateAssessment = async (
   id,
   { title, description, duration, startTime, endTime, allowCodeCopy, candidateIds, questionIds },
-  userId
+  userId,
+  userRole
 ) => {
   const assessmentId = parseInt(id, 10);
   const existing = await prisma.assessment.findUnique({
@@ -267,15 +268,9 @@ const updateAssessment = async (
     throw error;
   }
 
-  if (existing.createdBy !== userId) {
+  if (userRole !== 'ADMIN' && existing.createdBy !== userId) {
     const error = new Error('Forbidden: You can only edit assessments you created');
     error.statusCode = 403;
-    throw error;
-  }
-
-  if (existing.status === 'LIVE' || existing.status === 'COMPLETED') {
-    const error = new Error(`Cannot modify assessment when status is ${existing.status}`);
-    error.statusCode = 400;
     throw error;
   }
 
@@ -343,7 +338,7 @@ const updateAssessment = async (
   return updated;
 };
 
-const deleteAssessment = async (id, userId) => {
+const deleteAssessment = async (id, userId, userRole) => {
   const assessmentId = parseInt(id, 10);
   const existing = await prisma.assessment.findUnique({
     where: { id: assessmentId },
@@ -355,7 +350,7 @@ const deleteAssessment = async (id, userId) => {
     throw error;
   }
 
-  if (existing.createdBy !== userId) {
+  if (userRole !== 'ADMIN' && existing.createdBy !== userId) {
     const error = new Error('Forbidden: You can only delete assessments you created');
     error.statusCode = 403;
     throw error;

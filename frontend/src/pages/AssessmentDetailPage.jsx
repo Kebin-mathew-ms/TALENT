@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../layouts/DashboardLayout';
-import { fetchAssessmentById } from '../services/assessmentService';
+import { fetchAssessmentById, deleteAssessment } from '../services/assessmentService';
 import {
   FileCode,
   Users,
@@ -10,6 +10,7 @@ import {
   Calendar,
   ArrowLeft,
   Edit3,
+  Trash2,
   CheckCircle,
   Play,
   BarChart3,
@@ -42,6 +43,21 @@ export const AssessmentDetailPage = () => {
 
     loadAssessment();
   }, [id]);
+
+  const handleDelete = async () => {
+    if (window.confirm(`Are you sure you want to delete assessment "${assessment.title}"?`)) {
+      try {
+        const response = await deleteAssessment(assessment.id);
+        if (response.success) {
+          navigate('/interviewer/assessments');
+        } else {
+          alert(response.message);
+        }
+      } catch (err) {
+        alert(err.response?.data?.message || 'Failed to delete assessment.');
+      }
+    }
+  };
 
   if (isLoading) {
     return (
@@ -89,12 +105,21 @@ export const AssessmentDetailPage = () => {
                 <ArrowLeft size={16} />
                 <span>Back</span>
               </Link>
-              {assessment.status !== 'LIVE' && assessment.status !== 'COMPLETED' && (
-                <Link to={`/interviewer/assessments/${assessment.id}/edit`} className="btn-primary">
-                  <Edit3 size={16} />
-                  <span>Edit Assessment</span>
-                </Link>
-              )}
+
+              <Link to={`/interviewer/assessments/${assessment.id}/edit`} className="btn-primary">
+                <Edit3 size={16} />
+                <span>Edit Assessment</span>
+              </Link>
+
+              <button
+                className="btn-secondary"
+                style={{ color: '#f43f5e', borderColor: 'rgba(244, 63, 94, 0.4)' }}
+                onClick={handleDelete}
+              >
+                <Trash2 size={16} />
+                <span>Delete</span>
+              </button>
+
               {assessment.status === 'LIVE' && (
                 <Link to={`/interviewer/assessments/${assessment.id}/live`} className="btn-primary">
                   <Play size={16} />
